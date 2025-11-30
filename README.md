@@ -1,20 +1,29 @@
 # TONG
 万事铜小程序的准备材料第二版方案。计划做一款汛期能方便看水位信息的小程序，希望可以做起来。
 
-# 水库水文数据可视化脚本
-一个Python脚本，用于从API获取过去48小时的水库水文监测数据，并生成双轴折线图（支持正确显示m³等特殊符号）。
+A Python script for visualizing 48-hour hydrological monitoring data of Tongwan Reservoir in Zhongfang County (with proper math text rendering for unit symbols like m³).
 
-## 核心功能
-- 精准解析水库水文指标：库内水位、蓄水量、入库流量、出库流量
-- 自动计算时间范围（当前时间往前48小时）
-- 生成双轴折线图（左轴：库内水位 | 右轴：蓄水量/出入库流量）
-- 正确显示m³、10⁶m³等特殊符号，无乱码
-- 保留URL中的`+`号（避免编码为`%2B`）
-- 自动生成带时间戳的中文文件名，防止覆盖
-- 优雅处理无效数据和API请求错误
+## Core Features
+1. **Precise Metric Definition**
+   - `rz`: 库内水位 (Reservoir Water Level) - Unit: $m$ (米)
+   - `w`: 蓄水量 (Storage Capacity) - Unit: $10^6 m^3$ (百万立方)
+   - `inq`: 入库流量 (Inflow) - Unit: $m^3/s$ (立方米每秒)
+   - `otq`: 出库流量 (Outflow) - Unit: $m^3/s$ (立方米每秒)
 
-## 环境要求
+2. **Professional Visualization**
+   - Dual-axis line chart (left: water level | right: storage/flow)
+   - All unit symbols rendered with matplotlib math text (no garbled characters)
+   - Custom title: "中方县铜湾水库水文综合监测数据（站点编号：XXX）"
+   - High-resolution output (300 DPI) with Chinese/math symbol support
+
+3. **Robust Data Handling**
+   - Preserve `+` in API URL (avoid encoding to `%2B`)
+   - Auto-generate unique filenames with timestamps
+   - Handle missing/invalid data gracefully
+   - Comprehensive error logging
+
+## Prerequisites
 - Python 3.7+
-- 依赖包安装：
+- Required packages:
   ```bash
   pip install requests matplotlib
