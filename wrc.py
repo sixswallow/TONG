@@ -18,6 +18,11 @@ CLEANUP_ENABLE = True  # 是否开启自动清理
 CLEANUP_HOURS = 24     # 清理超过24小时的图片
 CLEANUP_PREFIX = f"{STATION_NAME}_水文数据_"  # 匹配要清理的图片前缀
 
+# 汛限水位配置
+FLOOD_LIMIT_LEVEL = 152.5  # 汛限水位：152.5米
+FLOOD_LINE_COLOR = "#ff4444"  # 汛限水位线颜色：红色
+FLOOD_LABEL_COLOR = "#cc0000"  # 汛限水位标签颜色
+
 # Matplotlib 渲染配置（中文+数学符号）
 plt.rcParams["font.sans-serif"] = ["SimHei"]        # 中文黑体
 plt.rcParams["axes.unicode_minus"] = False          # 负号正常显示
@@ -25,14 +30,14 @@ plt.rcParams["mathtext.fontset"] = "stix"           # 数学符号渲染
 plt.rcParams["mathtext.default"] = "regular"        # 数学文本样式
 plt.rcParams["figure.dpi"] = 100                    # 基础显示DPI
 
-# 水文指标配置
+# 水文指标配置（包含蓄水量w用于提取，左轴：库水位，右轴：流量）
 INDEX_CONFIG = {
-    "rz": {"name": "库内水位", "unit_math": "$m$", "color": "#1f77b4", "axis": "left"},
-    "w": {"name": "蓄水量", "unit_math": "$10^6 m^3$", "color": "#ff7f0e", "axis": "right"},
-    "inq": {"name": "入库流量", "unit_math": "$m^3/s$", "color": "#2ca02c", "axis": "right"},
-    "otq": {"name": "出库流量", "unit_math": "$m^3/s$", "color": "#d62728", "axis": "right"}
+    "rz": {"name": "库水位", "unit_math": "$m$", "color": "#1f77b4", "axis": "left", "show": True},
+    "w": {"name": "蓄水量", "unit_math": "$10^6 m^3$", "color": "#ff7f0e", "axis": "right", "show": False},  # 不展示
+    "inq": {"name": "入库流量", "unit_math": "$m^3/s$", "color": "#2ca02c", "axis": "right", "show": True},
+    "otq": {"name": "出库流量", "unit_math": "$m^3/s$", "color": "#d62728", "axis": "right", "show": True}
 }
-# 需要过滤0值的指标（入库/出库流量）
+# 需要过滤0值的指标（仅入库/出库流量）
 ZERO_FILTER_INDICES = ["inq", "otq"]
 
 # 自动清理旧图片函数
@@ -118,7 +123,7 @@ def parse_data(raw_data: dict) -> Tuple[List[datetime.datetime], Dict[str, List[
             print(f"时间解析失败: {time_str} | 错误: {e}")
             continue
         
-        # 解析指标值（缺失值/0值设为NaN）
+        # 解析指标值（包含蓄水量，仅过滤入库/出库流量的0值）
         temp_vals = {}
         for idx in INDEX_CONFIG.keys():
             val = item.get(idx)
@@ -128,12 +133,15 @@ def parse_data(raw_data: dict) -> Tuple[List[datetime.datetime], Dict[str, List[
             else:
                 try:
                     val_float = float(val)
-                    # 入库/出库流量为0时，视为未获取到数据，设为NaN
+                    # 仅入库/出库流量为0时设为NaN，蓄水量和库水位0值正常保留
                     if idx in ZERO_FILTER_INDICES and val_float == 0:
                         temp_vals[idx] = np.nan
                         print(f"过滤0值数据: 字段={idx}, 时间={time_str}, 值={val_float}")
                     else:
                         temp_vals[idx] = val_float
+                        # 打印蓄水量数据（确认已提取，可选）
+                        if idx == "w" and not np.isnan(val_float):
+                            print(f"提取蓄水量数据: 时间={time_str}, 值={val_float} {INDEX_CONFIG[idx]['unit_math']}")
                 except (ValueError, TypeError):
                     temp_vals[idx] = np.nan
                     print(f"数值解析失败: 字段={idx}, 值={val} | 数据项: {item}")
@@ -145,15 +153,15 @@ def parse_data(raw_data: dict) -> Tuple[List[datetime.datetime], Dict[str, List[
     # 校验解析结果
     if not time_list:
         raise Exception("解析后无有效时间数据")
-    # 移除全NaN的指标
+    # 移除全NaN的指标（蓄水量全NaN也会被移除，但不影响其他数据）
     for idx in list(index_values.keys()):
         if all(np.isnan(x) for x in index_values[idx]):
-            print(f"警告: {INDEX_CONFIG[idx]['name']}无有效数据, 跳过绘制")
+            print(f"警告: {INDEX_CONFIG[idx]['name']}无有效数据, 跳过绘制/提取")
             del index_values[idx], INDEX_CONFIG[idx]
     if not index_values:
         raise Exception("所有指标均无有效数据")
     
-    print(f"数据解析完成: 有效时间点={len(time_list)}个, 有效指标={[INDEX_CONFIG[idx]['name'] for idx in index_values.keys()]}")
+    print(f"数据解析完成: 有效时间点={len(time_list)}个, 已提取指标={[INDEX_CONFIG[idx]['name'] for idx in index_values.keys()]}")
     return time_list, index_values
 
 # 双行时间格式化器（兼容所有Matplotlib版本）
@@ -171,16 +179,20 @@ class DualLineDateFormatter:
         except ValueError:
             return ""
 
-# 绘制优化后的双轴折线图
+# 绘制优化后的双轴折线图（左：库水位，右：流量，不展示蓄水量，图例在下方）
 def plot_double_axis_chart(time_list: List[datetime.datetime], index_values: Dict[str, List[float]]):
     save_path = get_current_filename()
     fig, ax1 = plt.subplots(figsize=(18, 9))
-    ax2 = ax1.twinx()  # 右轴（蓄水量/流量）
+    ax2 = ax1.twinx()  # 右轴：流量（入库+出库）
     
-    # -------------------------- 绘制折线（缺失值/0值无标记点） --------------------------
+    # -------------------------- 绘制折线（仅展示show=True的指标） --------------------------
     lines, labels = [], []
     for idx, values in index_values.items():
         cfg = INDEX_CONFIG[idx]
+        # 跳过不展示的指标（蓄水量）
+        if not cfg["show"]:
+            continue
+        
         ax = ax1 if cfg["axis"] == "left" else ax2
         
         # 转换为numpy数组，过滤有效数据点
@@ -203,6 +215,32 @@ def plot_double_axis_chart(time_list: List[datetime.datetime], index_values: Dic
         lines.append(line)
         labels.append(f"{cfg['name']} ({cfg['unit_math']})")
     
+    # -------------------------- 添加汛限水位线 --------------------------
+    flood_line = None
+    if "rz" in index_values:  # 只有库水位数据存在时才显示
+        # 绘制水平汛限水位线
+        flood_line = ax1.axhline(
+            y=FLOOD_LIMIT_LEVEL, 
+            color=FLOOD_LINE_COLOR, 
+            linestyle="--", 
+            linewidth=2.5, 
+            alpha=0.9,
+            zorder=5,  # 层级低于数据标记，高于网格
+            label=f"汛限水位 ({FLOOD_LIMIT_LEVEL}$m$)"
+        )
+        
+        # 添加汛限水位文字标注（右上角）
+        ax1.text(
+            0.98, 0.95,  # 相对坐标（右上角）
+            f"汛限水位：{FLOOD_LIMIT_LEVEL}$m$",
+            transform=ax1.transAxes,  # 使用轴坐标，不随数据缩放
+            fontsize=12,
+            color=FLOOD_LABEL_COLOR,
+            fontweight="bold",
+            bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8),
+            horizontalalignment="right"
+        )
+    
     # -------------------------- X轴配置（底部双行时间刻度） --------------------------
     # 主刻度：每6小时一个
     ax1.xaxis.set_major_locator(mdates.HourLocator(interval=6))
@@ -219,44 +257,56 @@ def plot_double_axis_chart(time_list: List[datetime.datetime], index_values: Dic
     ax1.set_xlabel("", fontsize=14)
     
     # -------------------------- 纵轴配置 --------------------------
-    # 左轴（库内水位）
-    left_idx = next(k for k in INDEX_CONFIG if INDEX_CONFIG[k]["axis"] == "left")
+    # 左轴（库水位）
     ax1.set_ylabel(
-        f"{INDEX_CONFIG[left_idx]['name']}（单位：{INDEX_CONFIG[left_idx]['unit_math']}）",
-        fontsize=14, labelpad=15, color=INDEX_CONFIG[left_idx]["color"]
+        f"库水位（单位：$m$）",
+        fontsize=14, labelpad=15, color=INDEX_CONFIG["rz"]["color"]
     )
-    ax1.tick_params(axis="y", labelcolor=INDEX_CONFIG[left_idx]["color"], labelsize=11)
+    ax1.tick_params(axis="y", labelcolor=INDEX_CONFIG["rz"]["color"], labelsize=11)
     ax1.grid(True, alpha=0.3, linestyle="--", zorder=0)
     
-    # 右轴（蓄水量/流量）
-    if any(INDEX_CONFIG[idx]["axis"] == "right" for idx in INDEX_CONFIG):
+    # 右轴（流量，蓄水量不展示）
+    if any(idx in ["inq", "otq"] for idx in index_values):
         ax2.set_ylabel(
-            f"蓄水量/流量指标（单位：$10^6 m^3$ / $m^3/s$）",
-            fontsize=14, labelpad=15, color="#ff7f0e"
+            f"流量（单位：$m^3/s$）",
+            fontsize=14, labelpad=15, color="#d62728"  # 用出库流量颜色统一右轴标签
         )
-        ax2.tick_params(axis="y", labelcolor="#ff7f0e", labelsize=11)
+        ax2.tick_params(axis="y", labelcolor="#d62728", labelsize=11)
     
-    # -------------------------- 图例配置（无重叠） --------------------------
+    # -------------------------- 图例配置（底部横向排列，无遮挡） --------------------------
+    legend_lines = lines.copy()
+    legend_labels = labels.copy()
+    if flood_line is not None:
+        legend_lines.append(flood_line)
+        legend_labels.append(f"汛限水位 ({FLOOD_LIMIT_LEVEL}$m$)")
+    
     legend = ax1.legend(
-        lines, labels,
-        loc="upper center",
-        bbox_to_anchor=(0.5, -0.12),
-        ncol=len(lines),
+        legend_lines, legend_labels,
+        loc="upper center",  # 基准位置：上方居中
+        bbox_to_anchor=(0.5, -0.08),  # 偏移：向下8%，位于图表底部
+        ncol=len(legend_lines),  # 横向排列（按图例项数量分栏）
         fontsize=11,
         framealpha=0.95,
         shadow=True,
-        borderpad=1,
+        borderpad=1.2,
         labelspacing=1.5,
-        columnspacing=2
+        columnspacing=3,  # 增加横向间距，避免拥挤
+        frameon=True,
+        fancybox=True
     )
+    # 确保图例层级最高
+    legend.set_zorder(10)
+    # 图例边框样式
     legend.get_frame().set_linewidth(1.2)
+    legend.get_frame().set_facecolor("white")
     
     # -------------------------- 标题与布局 --------------------------
     ax1.set_title(
         f"{STATION_NAME}水文综合监测数据（站点编号：{STATION_CODE}）",
         fontsize=20, pad=25, fontweight="bold"
     )
-    plt.subplots_adjust(bottom=0.2, left=0.08, right=0.92, top=0.9)
+    # 调整布局：底部留足空间给图例
+    plt.subplots_adjust(bottom=0.18, left=0.08, right=0.95, top=0.9)
     
     # 保存高清图片
     plt.savefig(save_path, dpi=300, bbox_inches="tight", facecolor="white")
@@ -274,10 +324,12 @@ def main():
         print(f"请求时间范围：{date_begin} 至 {date_end}")
         
         raw_data = request_data(date_begin, date_end)
+        # 第三步：解析数据（包含蓄水量提取）
         time_list, index_values = parse_data(raw_data)
+        # 第四步：绘制图表（不展示蓄水量）
         plot_double_axis_chart(time_list, index_values)
         
-        print("\n脚本执行完成！")
+        print("\n脚本执行完成！蓄水量已提取但未在图表中展示")
     except Exception as e:
         print(f"\n脚本执行失败：{str(e)}")
 
