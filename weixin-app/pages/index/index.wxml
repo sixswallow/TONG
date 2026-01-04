@@ -1,0 +1,29 @@
+<view class="container">
+  <view class="header">
+    <text class="title">铜湾水库水文监测</text>
+    <text class="subtitle">48小时实时数据</text>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading-container">
+    <loading></loading>
+    <text>正在加载数据...</text>
+  </view>
+
+  <view wx:elif="{{error}}" class="error-container">
+    <text class="error-text">{{errorMsg}}</text>
+    <button bindtap="loadHydrologicalData" type="primary">重新加载</button>
+  </view>
+
+  <view wx:else class="content">
+    <view class="info-section">
+      <view wx:for="{{indexConfig}}" wx:key="key" class="info-card" wx:if="{{item.show}}">
+        <text class="info-label">{{item.name}}</text>
+        <text class="info-value">{{chartData.indexValues[key][chartData.indexValues[key].length - 1]}}{{item.unit_math}}</text>
+      </view>
+    </view>
+
+    <view class="chart-container">
+      <ec-canvas id="mychart-dom-multi" canvas-id="mychart-multi" ec="{{ ec }}"></ec-canvas>
+    </view>
+  </view>
+</view>
