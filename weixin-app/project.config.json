@@ -51,8 +51,8 @@
     "disableSWC": true
   },
   "compileType": "miniprogram",
-  "libVersion": "2.19.4",
-  "appid": "wx3ea9e3de06acc419",
+  "libVersion": "3.13.1",
+  "appid": "wxd4327f7366aa83a6",
   "projectname": "铜湾水库水文监测",
   "isGameTourist": false,
   "simulatorType": "wechat",

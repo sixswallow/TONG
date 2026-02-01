@@ -7,6 +7,7 @@ App({
   globalData: {
     // 核心配置
     BASE_URL: "http://www.hnswkcj.com/wxhn/data/rthyinfo/rsvr/proc/one.json",
+    PROXY_URL: "https://fetch-hcal-data-dvliegugiu.cn-shenzhen.fcapp.run",
     STATION_CODE: "613K0912",
     STATION_NAME: "中方县铜湾水库",
     

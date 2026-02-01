@@ -1,29 +1,67 @@
 <view class="container">
-  <view class="header">
-    <text class="title">铜湾水库水文监测</text>
-    <text class="subtitle">48小时实时数据</text>
+  <!-- 1. 加载状态层 -->
+  <view class="loading-box" wx:if="{{loading}}">
+    <view class="spinner"></view>
+    <text>正在调取 48 小时实时数据...</text>
   </view>
 
-  <view wx:if="{{loading}}" class="loading-container">
-    <loading></loading>
-    <text>正在加载数据...</text>
+  <!-- 2. 动画提示条：从顶部弹入 -->
+  <view class="hint-bar {{(!loading && !showDetails) ? 'active' : ''}}">
+    <view class="hint-content">
+      <icon type="info" size="14" color="#2196F3"></icon>
+      <text>提示：点击下方曲线节点查看整点数据</text>
+    </view>
   </view>
 
-  <view wx:elif="{{error}}" class="error-container">
-    <text class="error-text">{{errorMsg}}</text>
-    <button bindtap="loadHydrologicalData" type="primary">重新加载</button>
+  <!-- 3. 图表区域：通过 CSS 锁定高度 -->
+  <view class="chart-area {{showDetails ? 'blur' : ''}}" wx:if="{{!loading}}">
+    <ec-canvas id="mychart-dom-bar" canvas-id="mychart-bar" ec="{{ ec }}"></ec-canvas>
   </view>
 
-  <view wx:else class="content">
-    <view class="info-section">
-      <view wx:for="{{indexConfig}}" wx:key="key" class="info-card" wx:if="{{item.show}}">
-        <text class="info-label">{{item.name}}</text>
-        <text class="info-value">{{chartData.indexValues[key][chartData.indexValues[key].length - 1]}}{{item.unit_math}}</text>
+  <!-- 4. 稳定显示的免责声明：固定在屏幕底部 -->
+  <view class="footer-bar {{showDetails ? 'blur' : ''}}" wx:if="{{!loading}}">
+    <view class="disclaimer-box">
+      <view class="disclaimer-header">
+        <text class="tag">免责声明</text>
+        <text class="title">数据仅供学习交流</text>
+      </view>
+      <text class="content">本程序展示数据来源于网络公开科研接口，非官方实时发布，不具法律效力。严禁用于防汛指挥或实务决策。若需权威数据请查阅官方通报。</text>
+    </view>
+  </view>
+
+  <!-- 5. 详情展示弹窗 -->
+  <view class="modal-mask" wx:if="{{showDetails}}" bindtap="closeModal" catchtouchmove="preventTouchMove"></view>
+  <view class="details-modal" wx:if="{{showDetails}}">
+    <view class="modal-header">
+      <view class="header-left">
+        <view class="blue-bar"></view>
+        <text>监测详情</text>
+      </view>
+      <view class="close-x" bindtap="closeModal">×</view>
+    </view>
+    <view class="modal-body">
+      <view class="time-box">⏰ 监测时间：{{selectedData.time}}</view>
+      <view class="data-grid">
+        <view class="grid-item" style="border-left-color: #2196F3;">
+          <text class="label">库水位</text>
+          <view class="val">{{selectedData.rz}}<text class="unit">m</text></view>
+        </view>
+        <view class="grid-item" style="border-left-color: #4CAF50;">
+          <text class="label">入库流量</text>
+          <view class="val">{{selectedData.inq}}<text class="unit">m³/s</text></view>
+        </view>
+        <view class="grid-item" style="border-left-color: #FF9800;">
+          <text class="label">出库流量</text>
+          <view class="val">{{selectedData.otq}}<text class="unit">m³/s</text></view>
+        </view>
+        <view class="grid-item" style="border-left-color: #F44336;">
+          <text class="label">汛限水位</text>
+          <view class="val" style="color:#F44336">{{selectedData.floodLimit}}<text class="unit">m</text></view>
+        </view>
       </view>
     </view>
-
-    <view class="chart-container">
-      <ec-canvas id="mychart-dom-multi" canvas-id="mychart-multi" ec="{{ ec }}"></ec-canvas>
+    <view class="modal-footer">
+      <button class="btn-confirm" bindtap="closeModal">我已了解</button>
     </view>
   </view>
 </view>
