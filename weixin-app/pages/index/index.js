@@ -153,5 +153,18 @@ Page({
     this.setData({ showDetails: false });
   },
 
-  preventTouchMove: function() {}
+  preventTouchMove: function() {},
+
+  // 分享功能实现
+  onShareAppMessage: function () {
+    return {
+      title: '实时水文监测数据',
+      path: '/pages/index/index'
+    }
+  },
+  onShareTimeline: function () {
+    return {
+      title: '实时水文监测数据'
+    }
+  }
 });

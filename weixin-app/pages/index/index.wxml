@@ -64,4 +64,7 @@
       <button class="btn-confirm" bindtap="closeModal">我已了解</button>
     </view>
   </view>
+
+  <!-- 分享按钮 -->
+  <button class="share-btn" open-type="share">分享</button>
 </view>
