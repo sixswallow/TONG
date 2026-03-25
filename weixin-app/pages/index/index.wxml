@@ -1,67 +1,117 @@
 <view class="container">
-  <!-- 1. 加载状态层 -->
+  <!-- 加载状态 -->
   <view class="loading-box" wx:if="{{loading}}">
     <view class="spinner"></view>
-    <text>正在调取 48 小时实时数据...</text>
+    <text>正在调取数据...</text>
   </view>
 
-  <!-- 2. 动画提示条：从顶部弹入 -->
-  <view class="hint-bar {{(!loading && !showDetails) ? 'active' : ''}}">
-    <view class="hint-content">
-      <icon type="info" size="14" color="#2196F3"></icon>
-      <text>提示：点击下方曲线节点查看整点数据</text>
+  <!-- 页面内容区域 -->
+  <scroll-view class="main-scroll" scroll-y="{{!loading}}" wx:if="{{!loading}}">
+    
+    <!-- 1. 上部分卡片：水位趋势 -->
+    <view class="card">
+      <!-- 卡片头部 -->
+      <view class="card-header">
+        <view class="header-title-box">
+          <text class="header-title">水位趋势</text>
+        </view>
+        <text class="header-time">{{headerTime}}</text>
+      </view>
+
+      <!-- 图表区域 -->
+      <view class="chart-area">
+        <ec-canvas id="mychart-dom-bar" canvas-id="mychart-bar" ec="{{ ec }}"></ec-canvas>
+      </view>
+
+      <!-- 关键数据行 -->
+      <view class="metrics-row">
+        <view class="metric-item">
+          <text class="metric-label">最新出库流量</text>
+          <text class="metric-value">{{metrics.latestOtq}} <text class="unit">m³/s</text></text>
+        </view>
+        <view class="metric-divider"></view>
+        <view class="metric-item">
+          <text class="metric-label">最大出库流量</text>
+          <text class="metric-value">{{metrics.maxOtq}} <text class="unit">m³/s</text></text>
+        </view>
+        <view class="metric-divider"></view>
+        <view class="metric-item">
+          <text class="metric-label">最小出库流量</text>
+          <text class="metric-value">{{metrics.minOtq}} <text class="unit">m³/s</text></text>
+        </view>
+      </view>
+
+      <!-- 分割线 -->
+      <view class="section-divider"></view>
+
+      <!-- 选中时刻数据展示 (2x2 布局) -->
+      <view class="selected-data-section" wx:if="{{selectedData}}">
+        <view class="section-sub-title">选中时刻数据</view>
+        <view class="grid-2x2">
+          <view class="grid-cell">
+            <text class="grid-label">时刻</text>
+            <text class="grid-value time-val">{{selectedData.formattedTime}}</text>
+          </view>
+          <view class="grid-cell">
+            <text class="grid-label">库水位</text>
+            <text class="grid-value">{{selectedData.rz}} <text class="unit">m</text></text>
+          </view>
+          <view class="grid-cell">
+            <text class="grid-label">入库流量</text>
+            <text class="grid-value">{{selectedData.inq}} <text class="unit">m³/s</text></text>
+          </view>
+          <view class="grid-cell">
+            <text class="grid-label">出库流量</text>
+            <text class="grid-value highlight">{{selectedData.otq}} <text class="unit">m³/s</text></text>
+          </view>
+        </view>
+      </view>
     </view>
-  </view>
 
-  <!-- 3. 图表区域：通过 CSS 锁定高度 -->
-  <view class="chart-area {{showDetails ? 'blur' : ''}}" wx:if="{{!loading}}">
-    <ec-canvas id="mychart-dom-bar" canvas-id="mychart-bar" ec="{{ ec }}"></ec-canvas>
-  </view>
+    <!-- 2. 下部分卡片：详细数据 -->
+    <view class="card">
+      <!-- 卡片头部 -->
+      <view class="card-header">
+        <view class="header-title-box">
+          <text class="header-title">详细数据</text>
+        </view>
+        <text class="header-time">{{listTime}}</text>
+      </view>
 
-  <!-- 4. 稳定显示的免责声明：固定在屏幕底部 -->
-  <view class="footer-bar {{showDetails ? 'blur' : ''}}" wx:if="{{!loading}}">
-    <view class="disclaimer-box">
+      <!-- 表格容器 -->
+      <view class="table-container">
+        <!-- 列表标题栏 -->
+        <view class="table-header">
+          <text class="col col-time">时刻</text>
+          <text class="col">库水位</text>
+          <text class="col">入库</text>
+          <text class="col">出库</text>
+        </view>
+
+        <!-- 列表内容 -->
+        <view class="table-body">
+          <block wx:for="{{chartData.timeList}}" wx:key="index">
+            <view class="table-row">
+              <text class="col col-time">{{item}}</text>
+              <text class="col">{{chartData.indexValues.rz[index] != null ? chartData.indexValues.rz[index].toFixed(2) : '--'}}</text>
+              <text class="col">{{chartData.indexValues.inq[index].toFixed(2)}}</text>
+              <text class="col">{{chartData.indexValues.otq[index].toFixed(2)}}</text>
+            </view>
+          </block>
+        </view>
+      </view>
+    </view>
+
+    <!-- 3. 底部免责声明 -->
+    <view class="disclaimer-card">
       <view class="disclaimer-header">
         <text class="tag">免责声明</text>
         <text class="title">数据仅供学习交流</text>
       </view>
-      <text class="content">本程序展示数据来源于网络公开科研接口，非官方实时发布，不具法律效力。严禁用于防汛指挥或实务决策。若需权威数据请查阅官方通报。</text>
+      <text class="content">本程序展示数据来源于公开科研接口，非官方实时发布，不具法律效力。严禁用于防汛指挥或实务决策。若需权威数据请查阅官方通报。</text>
     </view>
-  </view>
 
-  <!-- 5. 详情展示弹窗 -->
-  <view class="modal-mask" wx:if="{{showDetails}}" bindtap="closeModal" catchtouchmove="preventTouchMove"></view>
-  <view class="details-modal" wx:if="{{showDetails}}">
-    <view class="modal-header">
-      <view class="header-left">
-        <view class="blue-bar"></view>
-        <text>监测详情</text>
-      </view>
-      <view class="close-x" bindtap="closeModal">×</view>
-    </view>
-    <view class="modal-body">
-      <view class="time-box">⏰ 监测时间：{{selectedData.time}}</view>
-      <view class="data-grid">
-        <view class="grid-item" style="border-left-color: #2196F3;">
-          <text class="label">库水位</text>
-          <view class="val">{{selectedData.rz}}<text class="unit">m</text></view>
-        </view>
-        <view class="grid-item" style="border-left-color: #4CAF50;">
-          <text class="label">入库流量</text>
-          <view class="val">{{selectedData.inq}}<text class="unit">m³/s</text></view>
-        </view>
-        <view class="grid-item" style="border-left-color: #FF9800;">
-          <text class="label">出库流量</text>
-          <view class="val">{{selectedData.otq}}<text class="unit">m³/s</text></view>
-        </view>
-        <view class="grid-item" style="border-left-color: #F44336;">
-          <text class="label">汛限水位</text>
-          <view class="val" style="color:#F44336">{{selectedData.floodLimit}}<text class="unit">m</text></view>
-        </view>
-      </view>
-    </view>
-    <view class="modal-footer">
-      <button class="btn-confirm" bindtap="closeModal">我已了解</button>
-    </view>
-  </view>
+    <!-- 底部安全间距 -->
+    <view class="bottom-safe-area"></view>
+  </scroll-view>
 </view>
