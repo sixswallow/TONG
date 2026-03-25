@@ -1,5 +1,9 @@
 {
   "usingComponents": {
     "ec-canvas": "../../ec-canvas/ec-canvas"
-  }
+  },
+  "navigationBarTitleText": "水文监测",
+  "navigationBarBackgroundColor": "#1565C0",
+  "navigationBarTextStyle": "white",
+  "enablePullDownRefresh": false
 }

@@ -2,15 +2,20 @@
   <!-- 加载状态 -->
   <view class="loading-box" wx:if="{{loading}}">
     <view class="spinner"></view>
-    <text>正在调取数据...</text>
+    <text class="loading-text">正在调取数据...</text>
   </view>
 
-  <!-- 页面内容区域 -->
-  <scroll-view class="main-scroll" scroll-y="{{!loading}}" wx:if="{{!loading}}">
+  <!-- 页面内容 -->
+  <view class="page-content" wx:if="{{!loading}}">
     
-    <!-- 1. 上部分卡片：水位趋势 -->
+    <!-- 顶部标题栏 -->
+    <view class="top-bar">
+      <text class="top-bar-title">水文监测站</text>
+      <text class="top-bar-subtitle">实时水情数据</text>
+    </view>
+
+    <!-- 水位趋势卡片 -->
     <view class="card">
-      <!-- 卡片头部 -->
       <view class="card-header">
         <view class="header-title-box">
           <text class="header-title">水位趋势</text>
@@ -19,34 +24,65 @@
       </view>
 
       <!-- 图表区域 -->
-      <view class="chart-area">
-        <ec-canvas id="mychart-dom-bar" canvas-id="mychart-bar" ec="{{ ec }}"></ec-canvas>
+      <view class="chart-wrapper">
+        <ec-canvas 
+          id="mychart-dom-bar" 
+          canvas-id="mychart-bar" 
+          ec="{{ ec }}"
+          force-use-old-canvas="true"
+        ></ec-canvas>
+      </view>
+
+      <!-- 图例 -->
+      <view class="legend-row">
+        <view class="legend-item">
+          <view class="legend-dot" style="background:#2196F3;"></view>
+          <text class="legend-text">库水位</text>
+        </view>
+        <view class="legend-item">
+          <view class="legend-dot" style="background:#4CAF50;"></view>
+          <text class="legend-text">入库流量</text>
+        </view>
+        <view class="legend-item">
+          <view class="legend-dot" style="background:#FF9800;"></view>
+          <text class="legend-text">出库流量</text>
+        </view>
+        <view class="legend-item">
+          <view class="legend-line"></view>
+          <text class="legend-text">汛限水位</text>
+        </view>
       </view>
 
       <!-- 关键数据行 -->
       <view class="metrics-row">
         <view class="metric-item">
-          <text class="metric-label">最新出库流量</text>
-          <text class="metric-value">{{metrics.latestOtq}} <text class="unit">m³/s</text></text>
+          <text class="metric-label">最新出库</text>
+          <text class="metric-value">{{metrics.latestOtq}}</text>
+          <text class="metric-unit">m³/s</text>
         </view>
         <view class="metric-divider"></view>
         <view class="metric-item">
-          <text class="metric-label">最大出库流量</text>
-          <text class="metric-value">{{metrics.maxOtq}} <text class="unit">m³/s</text></text>
+          <text class="metric-label">最大出库</text>
+          <text class="metric-value max-val">{{metrics.maxOtq}}</text>
+          <text class="metric-unit">m³/s</text>
         </view>
         <view class="metric-divider"></view>
         <view class="metric-item">
-          <text class="metric-label">最小出库流量</text>
-          <text class="metric-value">{{metrics.minOtq}} <text class="unit">m³/s</text></text>
+          <text class="metric-label">最小出库</text>
+          <text class="metric-value min-val">{{metrics.minOtq}}</text>
+          <text class="metric-unit">m³/s</text>
         </view>
       </view>
 
       <!-- 分割线 -->
       <view class="section-divider"></view>
 
-      <!-- 选中时刻数据展示 (2x2 布局) -->
+      <!-- 选中时刻数据 -->
       <view class="selected-data-section" wx:if="{{selectedData}}">
-        <view class="section-sub-title">选中时刻数据</view>
+        <view class="section-sub-title">
+          <view class="sub-title-icon"></view>
+          <text>选中时刻数据</text>
+        </view>
         <view class="grid-2x2">
           <view class="grid-cell">
             <text class="grid-label">时刻</text>
@@ -54,23 +90,27 @@
           </view>
           <view class="grid-cell">
             <text class="grid-label">库水位</text>
-            <text class="grid-value">{{selectedData.rz}} <text class="unit">m</text></text>
+            <text class="grid-value rz-val">{{selectedData.rz}} m</text>
           </view>
           <view class="grid-cell">
             <text class="grid-label">入库流量</text>
-            <text class="grid-value">{{selectedData.inq}} <text class="unit">m³/s</text></text>
+            <text class="grid-value inq-val">{{selectedData.inq}} m³/s</text>
           </view>
           <view class="grid-cell">
             <text class="grid-label">出库流量</text>
-            <text class="grid-value highlight">{{selectedData.otq}} <text class="unit">m³/s</text></text>
+            <text class="grid-value otq-val">{{selectedData.otq}} m³/s</text>
           </view>
         </view>
       </view>
+
+      <!-- 未选中提示 -->
+      <view class="tap-hint" wx:if="{{!selectedData}}">
+        <text class="tap-hint-text">👆 在图表上滑动查看对应时刻详情</text>
+      </view>
     </view>
 
-    <!-- 2. 下部分卡片：详细数据 -->
+    <!-- 详细数据卡片 -->
     <view class="card">
-      <!-- 卡片头部 -->
       <view class="card-header">
         <view class="header-title-box">
           <text class="header-title">详细数据</text>
@@ -78,40 +118,36 @@
         <text class="header-time">{{listTime}}</text>
       </view>
 
-      <!-- 表格容器 -->
-      <view class="table-container">
-        <!-- 列表标题栏 -->
-        <view class="table-header">
-          <text class="col col-time">时刻</text>
-          <text class="col">库水位</text>
-          <text class="col">入库</text>
-          <text class="col">出库</text>
+      <view class="table-wrapper">
+        <view class="table-header-row">
+          <text class="th th-time">时刻</text>
+          <text class="th th-data">水位(m)</text>
+          <text class="th th-data">入库(m³/s)</text>
+          <text class="th th-data">出库(m³/s)</text>
         </view>
 
-        <!-- 列表内容 -->
-        <view class="table-body">
-          <block wx:for="{{chartData.timeList}}" wx:key="index">
-            <view class="table-row">
-              <text class="col col-time">{{item}}</text>
-              <text class="col">{{chartData.indexValues.rz[index] != null ? chartData.indexValues.rz[index].toFixed(2) : '--'}}</text>
-              <text class="col">{{chartData.indexValues.inq[index].toFixed(2)}}</text>
-              <text class="col">{{chartData.indexValues.otq[index].toFixed(2)}}</text>
+        <view class="table-scroll">
+          <block wx:for="{{tableList}}" wx:key="index">
+            <view class="table-row {{index % 2 === 0 ? 'row-even' : ''}}">
+              <text class="td td-time">{{item.time}}</text>
+              <text class="td td-data">{{item.rz}}</text>
+              <text class="td td-data">{{item.inq}}</text>
+              <text class="td td-data">{{item.otq}}</text>
             </view>
           </block>
         </view>
       </view>
     </view>
 
-    <!-- 3. 底部免责声明 -->
+    <!-- 免责声明 -->
     <view class="disclaimer-card">
       <view class="disclaimer-header">
         <text class="tag">免责声明</text>
-        <text class="title">数据仅供学习交流</text>
+        <text class="disclaimer-title">数据仅供学习交流</text>
       </view>
-      <text class="content">本程序展示数据来源于公开科研接口，非官方实时发布，不具法律效力。严禁用于防汛指挥或实务决策。若需权威数据请查阅官方通报。</text>
+      <text class="disclaimer-content">本程序展示数据来源于公开科研接口，非官方实时发布，不具法律效力。严禁用于防汛指挥或实务决策。若需权威数据请查阅官方通报。</text>
     </view>
 
-    <!-- 底部安全间距 -->
-    <view class="bottom-safe-area"></view>
-  </scroll-view>
+    <view class="bottom-spacer"></view>
+  </view>
 </view>
