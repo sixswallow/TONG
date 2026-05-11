@@ -51,7 +51,7 @@
     "disableSWC": true
   },
   "compileType": "miniprogram",
-  "libVersion": "3.13.1",
+  "libVersion": "3.15.0",
   "appid": "wxd4327f7366aa83a6",
   "projectname": "铜湾水库水文监测",
   "isGameTourist": false,
